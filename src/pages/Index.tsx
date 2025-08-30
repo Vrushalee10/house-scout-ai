@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Home, Phone, Mail, MessageSquare, Play, Download, Settings } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Home, Download, Settings } from "lucide-react";
+import { SearchBar } from "@/components/SearchBar";
+import { OutreachStudio } from "@/components/OutreachStudio";
+import { EnhancedResultCard } from "@/components/EnhancedResultCard";
+import { parseSearchQuery, geocodeAddress, calculateDistance, calculateTravelTimes, fetchLiveListings } from "@/utils/apiUtils";
 
 // Mock listings data (same as agent.mjs)
 const mockListings = [
@@ -20,10 +25,16 @@ const mockListings = [
 ];
 
 const Index = () => {
-  const [query, setQuery] = useState("02115 under $2400 1+ beds; top 8; outreach");
+  const { toast } = useToast();
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [outreachStudioOpen, setOutreachStudioOpen] = useState(false);
+  const [selectedListing, setSelectedListing] = useState<any>(null);
+  const [outreachTab, setOutreachTab] = useState<"email" | "sms" | "voicemail">("email");
+  const [searchCriteria, setSearchCriteria] = useState<any>(null);
+  const [commuteCoords, setCommuteCoords] = useState<{lat: number; lon: number} | null>(null);
   const [customCriteria, setCustomCriteria] = useState({
     cityZip: "02115",
     maxRent: "2400",
@@ -31,20 +42,21 @@ const Index = () => {
     topN: "8"
   });
 
-  // Parse natural language query (simplified version)
-  const parseQuery = (input: string) => {
-    const zipMatch = input.match(/\b(\d{5})\b/);
-    const rentMatch = input.match(/under\s*\$?(\d+)/i);
-    const bedMatch = input.match(/(\d+)\+?\s*bed/i);
-    const topMatch = input.match(/top\s*(\d+)/i);
-
-    return {
-      zip: zipMatch ? zipMatch[1] : "02115",
-      maxRent: rentMatch ? parseInt(rentMatch[1]) : 2400,
-      minBeds: bedMatch ? parseInt(bedMatch[1]) : 1,
-      topN: topMatch ? parseInt(topMatch[1]) : 8
+  // Geocode commute target when criteria changes
+  useEffect(() => {
+    const geocodeCommute = async () => {
+      if (searchCriteria?.commuteTarget) {
+        try {
+          const coords = await geocodeAddress(searchCriteria.commuteTarget);
+          setCommuteCoords(coords);
+        } catch (error) {
+          console.error('Failed to geocode commute target:', error);
+        }
+      }
     };
-  };
+    
+    geocodeCommute();
+  }, [searchCriteria?.commuteTarget]);
 
   // Score listing (simplified version)
   const scoreListing = (listing: any, params: any) => {
@@ -80,42 +92,129 @@ const Index = () => {
     return { score: Math.min(100, score), reason: reasons.join(", ") };
   };
 
-  const generateEmail = (listing: any) => {
-    return `Hi ${listing.contact_name},\n\nI'm interested in your ${listing.beds}-bedroom apartment at ${listing.address} listed at $${listing.rent}/month. I'm looking to move in September with a budget of up to $2400.\n\nWould it be possible to schedule a viewing? I'm flexible with timing and have all documentation ready.\n\nBest regards,\n[Your name]`;
+  // Calculate distance info for listings
+  const calculateDistanceInfo = async (listing: any) => {
+    if (!commuteCoords || !searchCriteria?.commuteTarget) return null;
+    
+    try {
+      const listingCoords = await geocodeAddress(`${listing.address}, ${listing.city}, ${listing.state}`);
+      if (!listingCoords) return null;
+      
+      const distance = calculateDistance(
+        commuteCoords.lat, 
+        commuteCoords.lon, 
+        listingCoords.lat, 
+        listingCoords.lon
+      );
+      
+      const { walkTime, bikeTime } = calculateTravelTimes(distance);
+      
+      return {
+        distance,
+        walkTime,
+        bikeTime,
+        commuteTarget: searchCriteria.commuteTarget
+      };
+    } catch (error) {
+      console.error('Failed to calculate distance:', error);
+      return null;
+    }
   };
 
-  const generateSms = (listing: any) => {
-    return `Hi! Interested in your ${listing.beds}BR at ${listing.address} ($${listing.rent}). Tour available? Budget $2400. Thanks!`;
-  };
-
-  const runQuickPick = (queryString: string) => {
+  const runSearch = async (queryString: string) => {
     setQuery(queryString);
     setLoading(true);
     
-    setTimeout(() => {
-      const params = parseQuery(queryString);
+    try {
+      const criteria = parseSearchQuery(queryString);
+      setSearchCriteria(criteria);
+      
+      let listings = mockListings; // Default to mock data
+      
+      // Try to fetch live data if available
+      try {
+        listings = await fetchLiveListings(criteria);
+        toast({
+          title: "Live data loaded",
+          description: `Found ${listings.length} live listings`,
+        });
+      } catch (error) {
+        console.log('Live data unavailable, using mock data');
+        toast({
+          title: "Using mock data", 
+          description: "Add RENTCAST_API_KEY for live listings",
+        });
+      }
       
       // Filter and score listings
-      const filtered = mockListings.filter(listing => 
-        listing.zip.includes(params.zip.substring(0, 3)) && 
-        listing.rent <= params.maxRent * 1.3 &&
-        listing.beds >= (params.minBeds === 0 ? 0 : params.minBeds)
-      );
+      const filtered = listings.filter(listing => {
+        const zipMatch = criteria.cityOrZip.length === 5 
+          ? listing.zip?.includes(criteria.cityOrZip.substring(0, 3))
+          : listing.city?.toLowerCase().includes(criteria.cityOrZip.toLowerCase());
+        
+        return zipMatch && 
+               listing.rent <= criteria.maxRent * 1.3 &&
+               listing.beds >= (criteria.minBeds === 0 ? 0 : criteria.minBeds);
+      });
 
       const scored = filtered.map(listing => {
-        const result = scoreListing(listing, params);
+        const result = scoreListing(listing, criteria);
         return { ...listing, ...result };
       }).sort((a, b) => b.score - a.score);
 
-      setResults(scored.slice(0, params.topN));
+      setResults(scored.slice(0, criteria.topN));
+      
+      // Print demo script to console
+      console.log(`Search parsed: ${criteria.cityOrZip}, $${criteria.maxRent}, ${criteria.minBeds}+ beds, Top ${criteria.topN}, Move-in ${criteria.moveIn}${criteria.commuteTarget ? `, Commute ${criteria.commuteTarget}` : ''}`);
+      console.log(`Top 3 results:`, scored.slice(0, 3).map(l => `${l.address} - Score ${l.score} - ${l.reason}`));
+      console.log("Open Outreach Studio → Email tab → edit → send (mailto)");
+      console.log("Switch to SMS → copy/send");  
+      console.log("Switch to Voicemail → Generate MP3 (if keys) → Place call (if keys)");
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      toast({
+        title: "Search failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const handleCustomSearch = () => {
     const queryString = `${customCriteria.cityZip} under $${customCriteria.maxRent}, ${customCriteria.minBeds}+ beds; top ${customCriteria.topN}; outreach`;
-    runQuickPick(queryString);
+    runSearch(queryString);
     setModalOpen(false);
+  };
+
+  const handleOutreachClick = (listing: any, tab: "email" | "sms" | "voicemail") => {
+    setSelectedListing(listing);
+    setOutreachTab(tab);
+    setOutreachStudioOpen(true);
+  };
+
+  const handlePrimaryAction = (action: string) => {
+    switch (action) {
+      case 'picks':
+        runSearch("02115 under $2400, 1+ beds; top 8; outreach");
+        break;
+      case 'messages':
+        if (results.length > 0) {
+          handleOutreachClick(results[0], "email");
+        } else {
+          runSearch("02115 under $2400, 1+ beds; top 8; outreach");
+        }
+        break;
+      case 'voicemail':
+        if (results.length > 0) {
+          handleOutreachClick(results[0], "voicemail");
+        } else {
+          runSearch("02115 under $2400, 1+ beds; top 8; outreach");
+        }
+        break;
+    }
   };
 
   return (
@@ -145,16 +244,19 @@ const Index = () => {
           
           {/* Primary CTAs */}
           <div className="flex justify-center gap-4 mb-8">
-            <Button size="lg" onClick={() => runQuickPick("02115 under $2400, 1+ beds; top 8; outreach")}>
+            <Button size="lg" onClick={() => handlePrimaryAction('picks')}>
               Get my top picks
             </Button>
-            <Button size="lg" variant="outline" onClick={() => runQuickPick("02115 under $2400, 1+ beds; top 8; outreach")}>
+            <Button size="lg" variant="outline" onClick={() => handlePrimaryAction('messages')}>
               Prep my messages
             </Button>
-            <Button size="lg" variant="secondary" onClick={() => runQuickPick("02115 under $2400, 1+ beds; top 8; outreach")}>
+            <Button size="lg" variant="secondary" onClick={() => handlePrimaryAction('voicemail')}>
               Make a voicemail
             </Button>
           </div>
+
+          {/* Search Bar */}
+          <SearchBar onSearch={runSearch} loading={loading} />
 
           {/* Quick Pick Buttons */}
           <div className="space-y-4 mb-8">
@@ -163,7 +265,7 @@ const Index = () => {
               <Button 
                 variant="outline" 
                 className="h-auto p-4 text-left flex-col items-start space-y-1"
-                onClick={() => runQuickPick("02115 under $2400, 1+ beds; top 8; outreach")}
+                onClick={() => runSearch("02115 under $2400, 1+ beds; top 8; outreach")}
                 disabled={loading}
               >
                 <div className="font-medium">Boston • ≤ $2400 • 1+ beds • Top 8</div>
@@ -171,7 +273,7 @@ const Index = () => {
               <Button 
                 variant="outline" 
                 className="h-auto p-4 text-left flex-col items-start space-y-1"
-                onClick={() => runQuickPick("95112 under $2200, 0+ beds; top 8; outreach")}
+                onClick={() => runSearch("95112 under $2200, 0+ beds; top 8; outreach")}
                 disabled={loading}
               >
                 <div className="font-medium">San Jose 95112 • ≤ $2200 • Studios OK • Top 8</div>
@@ -179,7 +281,7 @@ const Index = () => {
               <Button 
                 variant="outline" 
                 className="h-auto p-4 text-left flex-col items-start space-y-1"
-                onClick={() => runQuickPick("78705 under $1800, 1+ beds; top 10; outreach")}
+                onClick={() => runSearch("78705 under $1800, 1+ beds; top 10; outreach")}
                 disabled={loading}
               >
                 <div className="font-medium">Austin 78705 • ≤ $1800 • Roommate OK • Top 10</div>
@@ -261,7 +363,15 @@ const Index = () => {
         {results.length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold">Search Results ({results.length})</h2>
+              <div>
+                <h2 className="text-2xl font-semibold">Search Results ({results.length})</h2>
+                {searchCriteria && (
+                  <p className="text-muted-foreground mt-1">
+                    {searchCriteria.cityOrZip} • ≤ ${searchCriteria.maxRent} • {searchCriteria.minBeds}+ beds • Top {searchCriteria.topN}
+                    {searchCriteria.commuteTarget && ` • Commute ${searchCriteria.commuteTarget}`}
+                  </p>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm">
                   <Download className="w-4 h-4 mr-2" />
@@ -271,228 +381,33 @@ const Index = () => {
             </div>
 
             <div className="grid gap-6">
-              {results.map((listing, idx) => (
-                <Card key={listing.id} className="overflow-hidden">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{listing.address}</CardTitle>
-                        <p className="text-muted-foreground">{listing.city}, {listing.state} {listing.zip}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-primary">${listing.rent}</div>
-                        <Badge variant={listing.score >= 80 ? "default" : listing.score >= 60 ? "secondary" : "outline"}>
-                          Score: {listing.score}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    <div className="grid md:grid-cols-3 gap-6">
-                      {/* Property Details */}
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Property Details</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span>Beds/Baths:</span>
-                            <span className="font-medium">{listing.beds}BR / {listing.baths}BA</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Square Feet:</span>
-                            <span className="font-medium">{listing.sqft} sq ft</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Score Reason:</span>
-                            <span className="font-medium text-sm">{listing.reason}</span>
-                          </div>
-                        </div>
-                        {listing.amenities.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-3">
-                            {listing.amenities.map((amenity: string) => (
-                              <Badge key={amenity} variant="secondary" className="text-xs">{amenity}</Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Contact Info */}
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Contact</h4>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{listing.contact_name}</span>
-                          </div>
-                          {listing.contact_email && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Mail className="w-4 h-4" />
-                              <span>{listing.contact_email}</span>
-                            </div>
-                          )}
-                          {listing.contact_phone && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Phone className="w-4 h-4" />
-                              <span>{listing.contact_phone}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Generated Outreach */}
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">AI-Generated Outreach</h4>
-                        <div className="space-y-2">
-                          <Button variant="outline" size="sm" className="w-full justify-start">
-                            <Mail className="w-4 h-4 mr-2" />
-                            View Email Draft
-                          </Button>
-                          {listing.contact_phone && (
-                            <>
-                              <Button variant="outline" size="sm" className="w-full justify-start">
-                                <MessageSquare className="w-4 h-4 mr-2" />
-                                View SMS Draft
-                              </Button>
-                              <Button variant="outline" size="sm" className="w-full justify-start">
-                                <Play className="w-4 h-4 mr-2" />
-                                Voice Script
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                        
-                        {/* Sample outreach preview */}
-                        <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-2">SMS Preview:</p>
-                          <p className="text-sm">{generateSms(listing)}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <Separator className="my-4" />
-                    
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>Rank #{idx + 1} of {results.length}</span>
-                      <span>Last seen: {listing.lastSeenDate}</span>
-                      <Badge variant={listing.score >= 75 ? "default" : "secondary"}>
-                        {listing.score >= 75 ? "Call Recommended" : "Email/SMS"}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
+              {results.map(listing => (
+                <EnhancedResultCard
+                  key={listing.id}
+                  listing={listing}
+                  onOutreachClick={handleOutreachClick}
+                />
               ))}
             </div>
-
-            {/* CLI Instructions */}
-            <Card className="mt-8">
-              <CardHeader>
-                <CardTitle>🚀 Run the Full CLI Agent</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-muted-foreground">
-                    This web demo shows the core functionality. For full features including live API data, SMS sending, and voice calls, use the CLI:
-                  </p>
-                  <div className="bg-muted p-4 rounded-lg font-mono text-sm">
-                    <div className="space-y-2">
-                      <div># Basic demo with mock data</div>
-                      <div className="text-primary">node agent.mjs "02115 under $2400 1+ beds; top 8; outreach"</div>
-                      <div className="mt-4"># With live data and SMS/voice</div>
-                      <div className="text-primary">node agent.mjs "Boston under $2500" --live --send --voice</div>
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-4 mt-6">
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-semibold mb-2">🏠 RentCast API</h4>
-                      <p className="text-sm text-muted-foreground">Live rental listings from RentCast.io free tier</p>
-                    </div>
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-semibold mb-2">📱 Twilio SMS/Voice</h4>
-                      <p className="text-sm text-muted-foreground">Send SMS and place voice calls automatically</p>
-                    </div>
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-semibold mb-2">🎵 ElevenLabs TTS</h4>
-                      <p className="text-sm text-muted-foreground">Generate MP3 voicemails with AI voices</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
 
-        {/* Getting Started */}
-        {results.length === 0 && !loading && (
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>🤖 How It Works</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">1</div>
-                    <div>
-                      <p className="font-medium">Parse Natural Language</p>
-                      <p className="text-sm text-muted-foreground">Extract location, budget, bedroom requirements</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">2</div>
-                    <div>
-                      <p className="font-medium">Smart Scoring</p>
-                      <p className="text-sm text-muted-foreground">Rank by budget fit, bedroom match, and freshness</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">3</div>
-                    <div>
-                      <p className="font-medium">Generate Outreach</p>
-                      <p className="text-sm text-muted-foreground">Create personalized emails, SMS, and call scripts</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">4</div>
-                    <div>
-                      <p className="font-medium">Export & Execute</p>
-                      <p className="text-sm text-muted-foreground">Save to CSV or send SMS/voice automatically</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>📝 Example Queries</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
-                       onClick={() => setQuery("Boston under $2500, 1+ beds")}>
-                    <code className="text-sm">Boston under $2500, 1+ beds</code>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
-                       onClick={() => setQuery("02115 under $2400, 2+ beds; top 5")}>
-                    <code className="text-sm">02115 under $2400, 2+ beds; top 5</code>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
-                       onClick={() => setQuery("Cambridge under $3000, 1+ beds; September")}>
-                    <code className="text-sm">Cambridge under $3000, 1+ beds; September</code>
-                  </div>
-                  <div className="p-3 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
-                       onClick={() => setQuery("Find rentals near 02115 under $2400; outreach")}>
-                    <code className="text-sm">Find rentals near 02115 under $2400; outreach</code>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Outreach Studio */}
+        {selectedListing && (
+          <OutreachStudio
+            isOpen={outreachStudioOpen}
+            onClose={() => setOutreachStudioOpen(false)}
+            listing={selectedListing}
+            initialTab={outreachTab}
+          />
         )}
-        
-        {/* Footer Micro-note */}
-        <div className="text-center text-sm text-muted-foreground mt-16 mb-8">
-          We prepare 1-to-1 outreach. You approve every send.
-        </div>
+
+        {/* Footer */}
+        <footer className="mt-16 py-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            We prepare 1-to-1 outreach. You approve every send.
+          </p>
+        </footer>
       </div>
     </div>
   );
