@@ -1,73 +1,127 @@
-# Welcome to your Lovable project
+# HouseScout Agent 🏠🤖
 
-## Project info
+A headless AI agent that searches rental listings, ranks them by fit, and generates personalized outreach with optional SMS/voice capabilities.
 
-**URL**: https://lovable.dev/projects/c7469b2e-d086-4da9-a7ef-f9e259cfcc96
+## Quick Start
 
-## How can I edit this code?
+### 1. Run with Mock Data (Offline)
+```bash
+# Basic search
+node agent.mjs "Find rentals in 02115 under $2400, 1+ beds; top 8"
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/c7469b2e-d086-4da9-a7ef-f9e259cfcc96) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Custom parameters
+node agent.mjs "Cambridge under $3000, 2+ beds; top 5; September move-in"
 ```
 
-**Edit a file directly in GitHub**
+### 2. Enable Live Data
+```bash
+# Copy environment template
+cp .env.example .env
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+# Add your RentCast API key to .env
+RENTCAST_API_KEY=your_key_here
 
-**Use GitHub Codespaces**
+# Run with live data
+node agent.mjs "02115 under $2400, 1+ beds; top 8" --live
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### 3. Enable SMS & Voice (Optional)
 
-## What technologies are used for this project?
+Add Twilio credentials to `.env`:
+```
+TWILIO_ACCOUNT_SID=your_sid
+TWILIO_AUTH_TOKEN=your_token
+TWILIO_FROM_NUMBER=+1234567890
+```
 
-This project is built with:
+Add ElevenLabs credentials for voice:
+```
+ELEVENLABS_API_KEY=your_key
+ELEVENLABS_VOICE_ID=EXAVITQu4vr4xnSDxMaL
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Then use flags:
+```bash
+# Generate voice files only
+node agent.mjs "Boston under $2500, 1+ beds" --live --voice
 
-## How can I deploy this project?
+# Send SMS messages
+node agent.mjs "02115 under $2400, 1+ beds" --live --send
 
-Simply open [Lovable](https://lovable.dev/projects/c7469b2e-d086-4da9-a7ef-f9e259cfcc96) and click on Share -> Publish.
+# Place voice calls (high-scoring listings only)
+node agent.mjs "Cambridge under $3000, 2+ beds" --live --call-now
 
-## Can I connect a custom domain to my Lovable project?
+# All features combined
+node agent.mjs "02115 under $2400, 1+ beds" --live --voice --send --call-now
+```
 
-Yes, you can!
+## Features
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- **Natural Language Parsing**: "Cambridge under $3000, 2+ beds; top 5"
+- **Smart Scoring**: Budget fit (60pts) + Bedroom match (30pts) + Freshness (10pts)
+- **Multi-Channel Outreach**: Email, SMS, and voice scripts
+- **Live API Integration**: RentCast API with mock fallback
+- **Voice Synthesis**: ElevenLabs TTS for voicemails
+- **SMS/Voice Calls**: Twilio integration
+- **CSV Export**: Detailed shortlist and outreach data
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## API Keys & Services
+
+### RentCast (Live Listings)
+- Free tier available at [rentcast.io](https://rentcast.io)
+- Add `RENTCAST_API_KEY` to `.env`
+
+### Twilio (SMS/Voice)
+- Trial account works at [twilio.com](https://twilio.com)
+- Add account SID, auth token, and phone number
+
+### ElevenLabs (Voice Synthesis)
+- Free tier available at [elevenlabs.io](https://elevenlabs.io)
+- Add API key and voice ID
+
+## Command Line Options
+
+- `--live`: Use RentCast API for real listings
+- `--send`: Send SMS messages via Twilio
+- `--voice`: Generate MP3 voicemails with ElevenLabs
+- `--call-now`: Place voice calls for high-scoring listings (75+ score)
+
+## Output Files
+
+- `outputs/shortlist.csv`: Top listings with scores and contact info
+- `outputs/outreach.csv`: Generated outreach content and tracking
+- `outputs/voice/`: MP3 voicemail files (if `--voice` used)
+
+## Compliance & Best Practices
+
+- **1-to-1 Outreach Only**: Never mass blast
+- **Respect Rate Limits**: Graceful API fallbacks
+- **Privacy First**: No data storage beyond session
+- **Local Laws**: Follow telecommunications regulations in your area
+
+## Example Natural Language Queries
+
+```bash
+# Location-based
+"Boston under $2500, 1+ beds"
+"02115 under $2400, 2+ beds"
+"Cambridge under $3000, 1+ beds"
+
+# With timing
+"Somerville under $2800, 2+ beds; October move-in"
+"02139 under $2600, 1+ beds; September; top 5"
+
+# Full specification
+"Find 30 rentals near 02115 under $2400, 1+ beds; shortlist top 8; draft outreach; export"
+```
+
+## Error Handling
+
+- API failures → automatic fallback to mock data
+- Missing credentials → prepare outreach without sending
+- Rate limits → graceful degradation
+- Invalid phone numbers → skip SMS/voice actions
+
+---
+
+**⚠️ Important**: This tool is for personal apartment hunting only. Always respect website terms of service and local communication laws. Test with trial accounts before using production API keys.
