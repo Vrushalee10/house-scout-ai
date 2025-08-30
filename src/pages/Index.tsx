@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Search, Home, Phone, Mail, MessageSquare, Play, Download } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Home, Phone, Mail, MessageSquare, Play, Download, Settings } from "lucide-react";
 
 // Mock listings data (same as agent.mjs)
 const mockListings = [
@@ -21,6 +23,13 @@ const Index = () => {
   const [query, setQuery] = useState("02115 under $2400 1+ beds; top 8; outreach");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [customCriteria, setCustomCriteria] = useState({
+    cityZip: "02115",
+    maxRent: "2400",
+    minBeds: "1",
+    topN: "8"
+  });
 
   // Parse natural language query (simplified version)
   const parseQuery = (input: string) => {
@@ -71,11 +80,20 @@ const Index = () => {
     return { score: Math.min(100, score), reason: reasons.join(", ") };
   };
 
-  const runSearch = () => {
+  const generateEmail = (listing: any) => {
+    return `Hi ${listing.contact_name},\n\nI'm interested in your ${listing.beds}-bedroom apartment at ${listing.address} listed at $${listing.rent}/month. I'm looking to move in September with a budget of up to $2400.\n\nWould it be possible to schedule a viewing? I'm flexible with timing and have all documentation ready.\n\nBest regards,\n[Your name]`;
+  };
+
+  const generateSms = (listing: any) => {
+    return `Hi! Interested in your ${listing.beds}BR at ${listing.address} ($${listing.rent}). Tour available? Budget $2400. Thanks!`;
+  };
+
+  const runQuickPick = (queryString: string) => {
+    setQuery(queryString);
     setLoading(true);
     
     setTimeout(() => {
-      const params = parseQuery(query);
+      const params = parseQuery(queryString);
       
       // Filter and score listings
       const filtered = mockListings.filter(listing => 
@@ -94,12 +112,10 @@ const Index = () => {
     }, 1500);
   };
 
-  const generateEmail = (listing: any) => {
-    return `Hi ${listing.contact_name},\n\nI'm interested in your ${listing.beds}-bedroom apartment at ${listing.address} listed at $${listing.rent}/month. I'm looking to move in September with a budget of up to $2400.\n\nWould it be possible to schedule a viewing? I'm flexible with timing and have all documentation ready.\n\nBest regards,\n[Your name]`;
-  };
-
-  const generateSms = (listing: any) => {
-    return `Hi! Interested in your ${listing.beds}BR at ${listing.address} ($${listing.rent}). Tour available? Budget $2400. Thanks!`;
+  const handleCustomSearch = () => {
+    const queryString = `${customCriteria.cityZip} under $${customCriteria.maxRent}, ${customCriteria.minBeds}+ beds; top ${customCriteria.topN}; outreach`;
+    runQuickPick(queryString);
+    setModalOpen(false);
   };
 
   return (
@@ -118,33 +134,128 @@ const Index = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Search Section */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="w-5 h-5" />
-              Natural Language Search
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-4">
-              <Input
-                placeholder="e.g., '02115 under $2400 1+ beds; top 8; outreach'"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="flex-1"
-              />
-              <Button onClick={runSearch} disabled={loading} className="px-8">
-                {loading ? "Searching..." : "Search"}
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold mb-4">
+            Spend time touring, not typing.
+          </h1>
+          <p className="text-xl text-muted-foreground mb-8">
+            We find the best fits and write the first hello for you.
+          </p>
+          
+          {/* Primary CTAs */}
+          <div className="flex justify-center gap-4 mb-8">
+            <Button size="lg" onClick={() => runQuickPick("02115 under $2400, 1+ beds; top 8; outreach")}>
+              Get my top picks
+            </Button>
+            <Button size="lg" variant="outline" onClick={() => runQuickPick("02115 under $2400, 1+ beds; top 8; outreach")}>
+              Prep my messages
+            </Button>
+            <Button size="lg" variant="secondary" onClick={() => runQuickPick("02115 under $2400, 1+ beds; top 8; outreach")}>
+              Make a voicemail
+            </Button>
+          </div>
+
+          {/* Quick Pick Buttons */}
+          <div className="space-y-4 mb-8">
+            <h3 className="font-semibold text-lg">Quick Picks</h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 text-left flex-col items-start space-y-1"
+                onClick={() => runQuickPick("02115 under $2400, 1+ beds; top 8; outreach")}
+                disabled={loading}
+              >
+                <div className="font-medium">Boston • ≤ $2400 • 1+ beds • Top 8</div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 text-left flex-col items-start space-y-1"
+                onClick={() => runQuickPick("95112 under $2200, 0+ beds; top 8; outreach")}
+                disabled={loading}
+              >
+                <div className="font-medium">San Jose 95112 • ≤ $2200 • Studios OK • Top 8</div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 text-left flex-col items-start space-y-1"
+                onClick={() => runQuickPick("78705 under $1800, 1+ beds; top 10; outreach")}
+                disabled={loading}
+              >
+                <div className="font-medium">Austin 78705 • ≤ $1800 • Roommate OK • Top 10</div>
               </Button>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Badge variant="secondary">Mock Data Mode</Badge>
-              <Badge variant="outline">Smart Scoring</Badge>
-              <Badge variant="outline">Multi-Channel Outreach</Badge>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Change Criteria Link */}
+          <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <Settings className="w-4 h-4 mr-2" />
+                Change criteria
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Custom Search Criteria</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="cityZip">City/ZIP</Label>
+                  <Input
+                    id="cityZip"
+                    value={customCriteria.cityZip}
+                    onChange={(e) => setCustomCriteria({...customCriteria, cityZip: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="maxRent">Max Rent</Label>
+                  <Input
+                    id="maxRent"
+                    type="number"
+                    value={customCriteria.maxRent}
+                    onChange={(e) => setCustomCriteria({...customCriteria, maxRent: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="minBeds">Min Beds</Label>
+                  <Input
+                    id="minBeds"
+                    type="number"
+                    value={customCriteria.minBeds}
+                    onChange={(e) => setCustomCriteria({...customCriteria, minBeds: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="topN">Top N Results</Label>
+                  <Input
+                    id="topN"
+                    type="number"
+                    value={customCriteria.topN}
+                    onChange={(e) => setCustomCriteria({...customCriteria, topN: e.target.value})}
+                  />
+                </div>
+                <Button onClick={handleCustomSearch} className="w-full">
+                  Search
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Badges */}
+          <div className="flex justify-center flex-wrap gap-2 mt-8">
+            <Badge variant="secondary">Mock Data Mode</Badge>
+            <Badge variant="outline">Smart Scoring</Badge>
+            <Badge variant="outline">Multi-Channel Outreach</Badge>
+          </div>
+        </div>
+
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="mt-4 text-muted-foreground">Finding your perfect matches...</p>
+          </div>
+        )}
 
         {/* Results */}
         {results.length > 0 && (
@@ -377,6 +488,11 @@ const Index = () => {
             </Card>
           </div>
         )}
+        
+        {/* Footer Micro-note */}
+        <div className="text-center text-sm text-muted-foreground mt-16 mb-8">
+          We prepare 1-to-1 outreach. You approve every send.
+        </div>
       </div>
     </div>
   );
