@@ -235,120 +235,155 @@ const Index = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4">
-            Spend time touring, not typing.
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            We find the best fits and write the first hello for you.
-          </p>
-          
-          {/* Primary CTAs */}
-          <div className="flex justify-center gap-4 mb-8">
-            <Button size="lg" onClick={() => handlePrimaryAction('picks')}>
-              Get my top picks
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => handlePrimaryAction('messages')}>
-              Prep my messages
-            </Button>
-            <Button size="lg" variant="secondary" onClick={() => handlePrimaryAction('voicemail')}>
-              Make a voicemail
-            </Button>
-          </div>
-
-          {/* Search Bar */}
-          <SearchBar onSearch={runSearch} loading={loading} />
-
-          {/* Quick Pick Buttons */}
-          <div className="space-y-4 mb-8">
-            <h3 className="font-semibold text-lg">Quick Picks</h3>
-            <div className="grid md:grid-cols-3 gap-4">
+          <div className="space-y-6 animate-fade-in">
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent leading-tight">
+              Spend time touring, not typing.
+            </h1>
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              We find the best fits and write the first hello for you.
+            </p>
+            
+            {/* Primary CTAs */}
+            <div className="flex justify-center gap-4 mb-8 flex-wrap">
               <Button 
-                variant="outline" 
-                className="h-auto p-4 text-left flex-col items-start space-y-1"
-                onClick={() => runSearch("02115 under $2400, 1+ beds; top 8; outreach")}
-                disabled={loading}
+                size="lg" 
+                className="btn-primary px-8 py-3 text-lg font-semibold"
+                onClick={() => handlePrimaryAction('picks')}
               >
-                <div className="font-medium">Boston • ≤ $2400 • 1+ beds • Top 8</div>
+                Get my top picks
               </Button>
               <Button 
+                size="lg" 
                 variant="outline" 
-                className="h-auto p-4 text-left flex-col items-start space-y-1"
-                onClick={() => runSearch("95112 under $2200, 0+ beds; top 8; outreach")}
-                disabled={loading}
+                className="px-8 py-3 text-lg font-semibold border-2 border-primary/20 hover:border-primary hover:bg-primary/5 transition-all duration-300"
+                onClick={() => handlePrimaryAction('messages')}
               >
-                <div className="font-medium">San Jose 95112 • ≤ $2200 • Studios OK • Top 8</div>
+                Prep my messages
               </Button>
               <Button 
-                variant="outline" 
-                className="h-auto p-4 text-left flex-col items-start space-y-1"
-                onClick={() => runSearch("78705 under $1800, 1+ beds; top 10; outreach")}
-                disabled={loading}
+                size="lg" 
+                variant="secondary" 
+                className="btn-secondary px-8 py-3 text-lg font-semibold"
+                onClick={() => handlePrimaryAction('voicemail')}
               >
-                <div className="font-medium">Austin 78705 • ≤ $1800 • Roommate OK • Top 10</div>
+                Make a voicemail
               </Button>
             </div>
-          </div>
 
-          {/* Change Criteria Link */}
-          <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Change criteria
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Custom Search Criteria</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="cityZip">City/ZIP</Label>
-                  <Input
-                    id="cityZip"
-                    value={customCriteria.cityZip}
-                    onChange={(e) => setCustomCriteria({...customCriteria, cityZip: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="maxRent">Max Rent</Label>
-                  <Input
-                    id="maxRent"
-                    type="number"
-                    value={customCriteria.maxRent}
-                    onChange={(e) => setCustomCriteria({...customCriteria, maxRent: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="minBeds">Min Beds</Label>
-                  <Input
-                    id="minBeds"
-                    type="number"
-                    value={customCriteria.minBeds}
-                    onChange={(e) => setCustomCriteria({...customCriteria, minBeds: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="topN">Top N Results</Label>
-                  <Input
-                    id="topN"
-                    type="number"
-                    value={customCriteria.topN}
-                    onChange={(e) => setCustomCriteria({...customCriteria, topN: e.target.value})}
-                  />
-                </div>
-                <Button onClick={handleCustomSearch} className="w-full">
-                  Search
+            {/* Search Bar */}
+            <SearchBar onSearch={runSearch} loading={loading} />
+
+            {/* Quick Pick Buttons */}
+            <div className="space-y-4 mb-8">
+              <h3 className="font-semibold text-lg">Quick Picks</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                <Button 
+                  variant="outline" 
+                  className="quick-pick-btn h-auto p-4 text-left flex-col items-start space-y-1"
+                  onClick={() => runSearch("02115 under $2400, 1+ beds; top 8; outreach")}
+                  disabled={loading}
+                >
+                  <div className="font-medium">Boston • ≤ $2400 • 1+ beds • Top 8</div>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="quick-pick-btn h-auto p-4 text-left flex-col items-start space-y-1"
+                  onClick={() => runSearch("95112 under $2200, 0+ beds; top 8; outreach")}
+                  disabled={loading}
+                >
+                  <div className="font-medium">San Jose 95112 • ≤ $2200 • Studios OK • Top 8</div>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="quick-pick-btn h-auto p-4 text-left flex-col items-start space-y-1"
+                  onClick={() => runSearch("78705 under $1800, 1+ beds; top 10; outreach")}
+                  disabled={loading}
+                >
+                  <div className="font-medium">Austin 78705 • ≤ $1800 • Roommate OK • Top 10</div>
                 </Button>
               </div>
-            </DialogContent>
-          </Dialog>
+            </div>
 
-          {/* Badges */}
-          <div className="flex justify-center flex-wrap gap-2 mt-8">
-            <Badge variant="secondary">Mock Data Mode</Badge>
-            <Badge variant="outline">Smart Scoring</Badge>
-            <Badge variant="outline">Multi-Channel Outreach</Badge>
+            {/* Change Criteria Link */}
+            <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="hover:bg-accent/20 transition-all duration-200">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Change criteria
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-card border-border">
+                <DialogHeader>
+                  <DialogTitle className="text-foreground">Custom Search Criteria</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="cityZip" className="text-foreground">City/ZIP</Label>
+                    <Input
+                      id="cityZip"
+                      className="input-enhanced"
+                      value={customCriteria.cityZip}
+                      onChange={(e) => setCustomCriteria({...customCriteria, cityZip: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="maxRent" className="text-foreground">Max Rent</Label>
+                    <Input
+                      id="maxRent"
+                      type="number"
+                      className="input-enhanced"
+                      value={customCriteria.maxRent}
+                      onChange={(e) => setCustomCriteria({...customCriteria, maxRent: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="minBeds" className="text-foreground">Min Beds</Label>
+                    <Input
+                      id="minBeds"
+                      type="number"
+                      className="input-enhanced"
+                      value={customCriteria.minBeds}
+                      onChange={(e) => setCustomCriteria({...customCriteria, minBeds: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="topN" className="text-foreground">Top N Results</Label>
+                    <Input
+                      id="topN"
+                      type="number"
+                      className="input-enhanced"
+                      value={customCriteria.topN}
+                      onChange={(e) => setCustomCriteria({...customCriteria, topN: e.target.value})}
+                    />
+                  </div>
+                  <Button onClick={handleCustomSearch} className="btn-primary w-full">
+                    Search
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Badges */}
+            <div className="flex justify-center flex-wrap gap-2 mt-8">
+              <Badge 
+                variant="secondary" 
+                className="badge-interactive px-4 py-2 text-sm font-medium"
+              >
+                Mock Data Mode
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="badge-interactive px-4 py-2 text-sm font-medium border-primary/20 hover:border-primary hover:bg-primary/5"
+              >
+                Smart Scoring
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="badge-interactive px-4 py-2 text-sm font-medium border-primary/20 hover:border-primary hover:bg-primary/5"
+              >
+                Multi-Channel Outreach
+              </Badge>
+            </div>
           </div>
         </div>
 
@@ -381,12 +416,13 @@ const Index = () => {
             </div>
 
             <div className="grid gap-6">
-              {results.map(listing => (
-                <EnhancedResultCard
-                  key={listing.id}
-                  listing={listing}
-                  onOutreachClick={handleOutreachClick}
-                />
+              {results.map((listing, index) => (
+                <div key={listing.id} className="animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+                  <EnhancedResultCard
+                    listing={listing}
+                    onOutreachClick={handleOutreachClick}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -404,7 +440,7 @@ const Index = () => {
 
         {/* Footer */}
         <footer className="mt-16 py-8 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground bg-muted/30 backdrop-blur-sm px-6 py-3 rounded-full inline-block transition-all duration-300 hover:bg-muted/50">
             We prepare 1-to-1 outreach. You approve every send.
           </p>
         </footer>

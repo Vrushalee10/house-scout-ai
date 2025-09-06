@@ -25,10 +25,15 @@ export const SearchBar = ({ onSearch, loading }: SearchBarProps) => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Boston under $2400, 1+ beds, move-in September, top 8, commute MIT, pets"
-          className="flex-1 h-12 text-base"
+          className="input-enhanced flex-1 h-12 text-base"
           disabled={loading}
         />
-        <Button type="submit" size="lg" disabled={loading || !query.trim()}>
+        <Button 
+          type="submit" 
+          size="lg" 
+          disabled={loading || !query.trim()}
+          className="btn-primary px-6"
+        >
           <Search className="w-4 h-4 mr-2" />
           Search
         </Button>

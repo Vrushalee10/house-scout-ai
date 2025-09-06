@@ -52,21 +52,24 @@ export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: E
   const isIdealForStudents = distanceInfo && distanceInfo.distance <= 3;
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+    <Card className="card-interactive overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-lg">{listing.address}</CardTitle>
+            <CardTitle className="text-lg text-foreground">{listing.address}</CardTitle>
             <p className="text-muted-foreground">{listing.city}, {listing.state} {listing.zip}</p>
             {isIdealForStudents && (
-              <Badge variant="secondary" className="mt-1">
+              <Badge variant="secondary" className="badge-interactive mt-1">
                 Ideal for students
               </Badge>
             )}
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-primary">${listing.rent}</div>
-            <Badge variant={listing.score >= 80 ? "default" : listing.score >= 60 ? "secondary" : "outline"}>
+            <Badge 
+              variant={listing.score >= 80 ? "default" : listing.score >= 60 ? "secondary" : "outline"}
+              className="badge-interactive"
+            >
               Score: {listing.score}
             </Badge>
           </div>
@@ -95,11 +98,21 @@ export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: E
             )}
             
             <div className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full" onClick={openGoogleMaps}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full transition-all duration-200 hover:bg-accent/20" 
+                onClick={openGoogleMaps}
+              >
                 <MapPin className="w-4 h-4 mr-2" />
                 Google Maps
               </Button>
-              <Button variant="outline" size="sm" className="w-full" onClick={openStreetView}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full transition-all duration-200 hover:bg-accent/20" 
+                onClick={openStreetView}
+              >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Street View
               </Button>
@@ -138,7 +151,12 @@ export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: E
             )}
 
             {listing.url && (
-              <Button variant="outline" size="sm" className="w-full" onClick={() => window.open(listing.url)}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full transition-all duration-200 hover:bg-primary/10 hover:border-primary" 
+                onClick={() => window.open(listing.url)}  
+              >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 View Full Listing
               </Button>
@@ -167,15 +185,30 @@ export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: E
               </div>
               
               <div className="space-y-1">
-                <Button variant="outline" size="sm" className="w-full" onClick={() => openDirections('driving')}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full transition-all duration-200 hover:bg-accent/20" 
+                  onClick={() => openDirections('driving')}
+                >
                   <Navigation className="w-4 h-4 mr-2" />
                   Drive
                 </Button>
-                <Button variant="outline" size="sm" className="w-full" onClick={() => openDirections('transit')}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full transition-all duration-200 hover:bg-accent/20" 
+                  onClick={() => openDirections('transit')}
+                >
                   <Clock className="w-4 h-4 mr-2" />
                   Transit
                 </Button>
-                <Button variant="outline" size="sm" className="w-full" onClick={() => openDirections('walking')}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full transition-all duration-200 hover:bg-accent/20" 
+                  onClick={() => openDirections('walking')}
+                >
                   <Navigation className="w-4 h-4 mr-2" />
                   Walk
                 </Button>
@@ -190,7 +223,7 @@ export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: E
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="w-full justify-start"
+                className="w-full justify-start transition-all duration-200 hover:bg-blue-50 hover:border-primary hover:text-primary"
                 onClick={() => onOutreachClick(listing, "email")}
               >
                 <Mail className="w-4 h-4 mr-2" />
@@ -201,7 +234,7 @@ export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: E
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-full justify-start"
+                    className="w-full justify-start transition-all duration-200 hover:bg-green-50 hover:border-green-500 hover:text-green-700"
                     onClick={() => onOutreachClick(listing, "sms")}
                   >
                     <MessageSquare className="w-4 h-4 mr-2" />
@@ -210,7 +243,7 @@ export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: E
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="w-full justify-start"
+                    className="w-full justify-start transition-all duration-200 hover:bg-purple-50 hover:border-purple-500 hover:text-purple-700"
                     onClick={() => onOutreachClick(listing, "voicemail")}
                   >
                     <Phone className="w-4 h-4 mr-2" />
