@@ -7,11 +7,13 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Home, Download, Settings } from "lucide-react";
+import { Home, Download, Settings, Database, Brain, MessageCircle, Info, TrendingUp, Users, Heart } from "lucide-react";
 import { SearchBar } from "@/components/SearchBar";
 import { OutreachStudio } from "@/components/OutreachStudio";
 import { EnhancedResultCard } from "@/components/EnhancedResultCard";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import { parseSearchQuery, geocodeAddress, calculateDistance, calculateTravelTimes, fetchLiveListings } from "@/utils/apiUtils";
+import housescoutLogo from "@/assets/housescout-logo.png";
 
 // Mock listings data (same as agent.mjs)
 const mockListings = [
@@ -41,6 +43,9 @@ const Index = () => {
     minBeds: "1",
     topN: "8"
   });
+  const [searchHistory, setSearchHistory] = useState<any[]>([]);
+  const [savedProperties, setSavedProperties] = useState<any[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Geocode commute target when criteria changes
   useEffect(() => {
@@ -164,6 +169,15 @@ const Index = () => {
 
       setResults(scored.slice(0, criteria.topN));
       
+      // Add to search history
+      const historyEntry = {
+        id: Date.now().toString(),
+        query: queryString,
+        timestamp: new Date(),
+        resultCount: scored.length
+      };
+      setSearchHistory(prev => [historyEntry, ...prev.slice(0, 9)]); // Keep last 10 searches
+      
       // Print demo script to console
       console.log(`Search parsed: ${criteria.cityOrZip}, $${criteria.maxRent}, ${criteria.minBeds}+ beds, Top ${criteria.topN}, Move-in ${criteria.moveIn}${criteria.commuteTarget ? `, Commute ${criteria.commuteTarget}` : ''}`);
       console.log(`Top 3 results:`, scored.slice(0, 3).map(l => `${l.address} - Score ${l.score} - ${l.reason}`));
@@ -217,26 +231,132 @@ const Index = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
-      {/* Header */}
-      <div className="bg-card/80 backdrop-blur-sm border-b">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Home className="w-8 h-8 text-primary" />
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              HouseScout Agent
-            </h1>
-          </div>
-          <p className="text-muted-foreground">AI-powered rental property search with automated outreach</p>
-        </div>
-      </div>
+  const handleSaveProperty = (listing: any) => {
+    const savedProperty = {
+      id: listing.id,
+      address: listing.address,
+      city: listing.city,
+      state: listing.state,
+      rent: listing.rent,
+      beds: listing.beds,
+      score: listing.score,
+      savedAt: new Date()
+    };
+    
+    setSavedProperties(prev => {
+      if (prev.find(p => p.id === listing.id)) {
+        toast({
+          title: "Already saved",
+          description: "This property is already in your saved list",
+        });
+        return prev;
+      }
+      toast({
+        title: "Property saved",
+        description: `${listing.address} added to your saved properties`,
+      });
+      return [savedProperty, ...prev];
+    });
+  };
 
-      <div className="container mx-auto px-4 py-8">
+  const handleRemoveSaved = (id: string) => {
+    setSavedProperties(prev => prev.filter(p => p.id !== id));
+    toast({
+      title: "Property removed",
+      description: "Property removed from saved list",
+    });
+  };
+
+  const handleRemoveHistory = (id: string) => {
+    setSearchHistory(prev => prev.filter(h => h.id !== id));
+  };
+
+  const handleBadgeClick = (badgeType: string) => {
+    let message = "";
+    let description = "";
+    
+    switch (badgeType) {
+      case "mock":
+        message = "Mock Data Mode";
+        description = "Using sample rental listings. Add RENTCAST_API_KEY for live data.";
+        break;
+      case "scoring":
+        message = "Smart Scoring System";
+        description = "AI ranks properties by budget fit (60%), bedroom requirements (30%), and listing freshness (10%).";
+        break;
+      case "outreach":
+        message = "Multi-Channel Outreach";
+        description = "Generates personalized emails, SMS, and voicemail scripts for each property contact.";
+        break;
+    }
+    
+    toast({
+      title: message,
+      description: description,
+      duration: 4000,
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex">
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <div className="w-80 border-r bg-card/50 backdrop-blur-sm">
+          <ChatSidebar
+            searchHistory={searchHistory}
+            savedProperties={savedProperties}
+            onSelectHistory={runSearch}
+            onRemoveHistory={handleRemoveHistory}
+            onRemoveSaved={handleRemoveSaved}
+            onSelectProperty={(property) => {
+              // Find and highlight the property in current results
+              const found = results.find(r => r.id === property.id);
+              if (found) {
+                setSelectedListing(found);
+                setOutreachStudioOpen(true);
+              } else {
+                toast({
+                  title: "Property not in current results",
+                  description: "Run a new search to find this property",
+                });
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        {/* Header */}
+        <div className="bg-card/80 backdrop-blur-sm border-b sticky top-0 z-10">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src={housescoutLogo} alt="HouseScout" className="w-10 h-10" />
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                    HouseScout Agent
+                  </h1>
+                  <p className="text-sm text-muted-foreground">AI-powered rental search with smart outreach</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden"
+              >
+                Toggle Sidebar
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-6 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
           <div className="space-y-6 animate-fade-in">
-            <h1 className="text-6xl font-bold bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent leading-tight">
+            <h1 className="text-6xl font-bold text-primary leading-tight">
               Spend time touring, not typing.
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
@@ -367,20 +487,26 @@ const Index = () => {
             <div className="flex justify-center flex-wrap gap-2 mt-8">
               <Badge 
                 variant="secondary" 
-                className="badge-interactive px-4 py-2 text-sm font-medium"
+                className="badge-interactive px-4 py-2 text-sm font-medium cursor-pointer"
+                onClick={() => handleBadgeClick("mock")}
               >
+                <Database className="w-4 h-4 mr-2" />
                 Mock Data Mode
               </Badge>
               <Badge 
                 variant="outline" 
-                className="badge-interactive px-4 py-2 text-sm font-medium border-primary/20 hover:border-primary hover:bg-primary/5"
+                className="badge-interactive px-4 py-2 text-sm font-medium border-primary/20 hover:border-primary hover:bg-primary/5 cursor-pointer"
+                onClick={() => handleBadgeClick("scoring")}
               >
+                <Brain className="w-4 h-4 mr-2" />
                 Smart Scoring
               </Badge>
               <Badge 
                 variant="outline" 
-                className="badge-interactive px-4 py-2 text-sm font-medium border-primary/20 hover:border-primary hover:bg-primary/5"
+                className="badge-interactive px-4 py-2 text-sm font-medium border-primary/20 hover:border-primary hover:bg-primary/5 cursor-pointer"
+                onClick={() => handleBadgeClick("outreach")}
               >
+                <MessageCircle className="w-4 h-4 mr-2" />
                 Multi-Channel Outreach
               </Badge>
             </div>
@@ -421,6 +547,8 @@ const Index = () => {
                   <EnhancedResultCard
                     listing={listing}
                     onOutreachClick={handleOutreachClick}
+                    onSaveProperty={handleSaveProperty}
+                    isSaved={savedProperties.some(p => p.id === listing.id)}
                   />
                 </div>
               ))}
@@ -444,6 +572,7 @@ const Index = () => {
             We prepare 1-to-1 outreach. You approve every send.
           </p>
         </footer>
+        </div>
       </div>
     </div>
   );

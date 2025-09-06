@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, MessageSquare, Phone, ExternalLink, MapPin, Navigation, Clock } from "lucide-react";
+import { Mail, MessageSquare, Phone, ExternalLink, MapPin, Navigation, Clock, Heart } from "lucide-react";
 
 interface EnhancedResultCardProps {
   listing: any;
   onOutreachClick: (listing: any, tab: "email" | "sms" | "voicemail") => void;
+  onSaveProperty?: (listing: any) => void;
+  isSaved?: boolean;
   distanceInfo?: {
     distance: number;
     walkTime: number;
@@ -15,7 +17,13 @@ interface EnhancedResultCardProps {
   };
 }
 
-export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: EnhancedResultCardProps) => {
+export const EnhancedResultCard = ({ 
+  listing, 
+  onOutreachClick, 
+  onSaveProperty,
+  isSaved = false,
+  distanceInfo 
+}: EnhancedResultCardProps) => {
   const [imageError, setImageError] = useState(false);
 
   const openGoogleMaps = () => {
@@ -65,7 +73,19 @@ export const EnhancedResultCard = ({ listing, onOutreachClick, distanceInfo }: E
             )}
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-primary">${listing.rent}</div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="text-2xl font-bold text-primary">${listing.rent}</div>
+              {onSaveProperty && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-8 w-8 p-0 ${isSaved ? 'text-red-500 hover:text-red-600' : 'text-muted-foreground hover:text-red-500'}`}
+                  onClick={() => onSaveProperty(listing)}
+                >
+                  <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                </Button>
+              )}
+            </div>
             <Badge 
               variant={listing.score >= 80 ? "default" : listing.score >= 60 ? "secondary" : "outline"}
               className="badge-interactive"
