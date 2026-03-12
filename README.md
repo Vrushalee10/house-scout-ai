@@ -1,6 +1,7 @@
 # HouseScout Agent 🏠🤖
 
 A headless AI agent that searches rental listings, ranks them by fit, and generates personalized outreach with optional SMS/voice capabilities.
+Presentation link :https://www.canva.com/design/DAGyOp1XtEk/AAjY6VfeocN5WaiR1VC5HQ/view?utm_content=DAGyOp1XtEk&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hb3c1cc4328
 
 ## Quick Start
 
